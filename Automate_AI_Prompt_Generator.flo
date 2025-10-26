@@ -1,0 +1,184 @@
+Automate (LlamaLab) Flow: 1-Tap All-in-One AI Prompt Generator (Android)
+
+**Note:** This file contains a complete, copy-paste friendly description of the Automate flow (blocks, exact fields, and HTTP JSON body).  
+Automate's `.flo` binary format is native to the app and difficult to produce reliably outside the app without testing.  
+Below you'll find step-by-step blocks you can recreate quickly in Automate, plus a ready HTTP request JSON you can paste into the app's **"HTTP request"** block.  
+Also included: a small troubleshooting and customization section.
+
+---
+
+## Quick summary
+- **Purpose:** Take one user input (typed or voice) and generate 3 prompts (Image / Text / Video) using OpenAI, then copy output to clipboard and show a toast.
+- **Apps needed:** Automate (by LlamaLab), an OpenAI API key.
+- **Placeholders to replace:** `YOUR_OPENAI_API_KEY_HERE` (without brackets)
+- **Model used:** `gpt-4o-mini` (you can change as needed)
+
+---
+
+## Full flow — Blocks (in order)
+
+1. **Start**
+   - Default start block (automate adds automatically).
+
+2. **Ask for input** (Dialog)
+   - Type: *Ask for text*
+   - Title: `Enter topic`
+   - Message: `Type a short topic (e.g., Diwali Poster, YouTube Script, Gold Ring)`
+   - Variable name (store result): `topic`
+   - Timeout: none
+   - Cancelable: yes
+
+   *If you want voice input version, skip this block and add a "Record audio / Recognize speech" block to convert speech to text; store into `topic`.*
+
+3. **Set variable (prompt_template)** (Block: "Set variable")
+   - Variable: `prompt_template`
+   - Value (exact text — include line breaks):
+
+```
+आप एक Advanced AI Prompt Engineer हैं।
+
+आप User के दिए गए Topic के लिए 3 प्रकार के Perfect Prompts बनाइए:
+
+1️⃣ Image Prompt (Midjourney / Leonardo)
+   - Visual Style
+   - Lighting / Mood
+   - Camera Angle
+   - Background / Details
+
+2️⃣ Text Prompt (ChatGPT / Blog / Reels)
+   - Clear Topic Intro
+   - Tone (Formal / Friendly / Motivational)
+   - Hindi-English Mix (if suitable)
+   - Call to Action (CTA)
+
+3️⃣ Video Prompt (Runway / Pika / Kaiber)
+   - Scene-by-scene visual description
+   - Background music / sound
+   - Motion style (slow pan / cinematic zoom)
+   - Duration (10–15 seconds)
+
+User Topic: {topic}
+```
+
+4. **HTTP request** (Block: "HTTP request")
+   - Method: `POST`
+   - URL: `https://api.openai.com/v1/chat/completions`
+   - Request headers (each header on its own line):
+     - `Authorization: Bearer YOUR_OPENAI_API_KEY_HERE`
+     - `Content-Type: application/json`
+   - Request body: set **Body type** = `Text` and paste the following exact JSON (replace double braces for Automate variable interpolation if needed — Automate uses `{variable}` syntax in many fields; we already used `{topic}` above):
+
+```
+{
+  "model": "gpt-4o-mini",
+  "messages": [
+    {"role": "user", "content": "{prompt_template}"}
+  ],
+  "max_tokens": 600,
+  "temperature": 0.7
+}
+```
+
+   - Note: If Automate escapes braces, remove outer quotes or use the app's variable insertion UI to insert `prompt_template` into the JSON body.
+
+   - Save output body to variable: `response_body`
+
+5. **JSON parse** (Block: "JSON")
+   - Operation: *Decode*
+   - Input text: `response_body`
+   - Output variable: `response_json`
+
+6. **Set variable (final_output)** (Block: "Set variable")
+   - Variable: `final_output`
+   - Value (expression):
+     - If Automate's JSON block parsed into a structure, use something like:
+       - `{response_json.choices[0].message.content}`
+     - Or set `final_output` to the path returned by the HTTP block; the common result is `response_json["choices"][0]["message"]["content"]`.
+   - If Automate doesn't support full path notation in the "Set variable" block, you can add a "Variable set" block and use the JSON "Get value" block to extract `choices -> 0 -> message -> content` and save to `final_output`.
+
+7. **Clipboard set** (Block: "Set clipboard")
+   - Text: `{final_output}`
+
+8. **Show notification / Toast** (Block: "Show toast" or "Create notification")
+   - Text: `✅ Prompt ready — copied to clipboard.`
+
+9. **(Optional) Show dialog with output** (Block: "Show dialog")
+   - Title: `Generated Prompts`
+   - Message: `{final_output}`
+   - Buttons: `OK` (optional)
+
+10. **End**
+
+---
+
+## Voice input variant (optional)
+If you prefer voice input instead of typing:
+- Replace the "Ask for input" block with:
+  - **Record audio** (or "Recognize speech")
+  - Configure language `hi-IN` (or `en-IN` / auto)
+  - Save result to `topic`
+- Then continue the flow from the Set variable (prompt_template) block.
+
+---
+
+## Troubleshooting & tips
+
+- **401 Unauthorized**: Make sure API key is correct and hasn't expired. Use `Bearer <KEY>` exactly.
+- **Automate variable insertion**: Automate supports inserting variables into text fields via the `{varname}` notation or using the variable picker (tap the field and choose variable). If JSON body rejects `{prompt_template}`, use the variable picker to insert the content directly into the body.
+- **Model/quota**: If `gpt-4o-mini` isn't available on your account, change `"model"` to `"gpt-4o"` or another available model in your OpenAI account.
+- **Response too long / truncated**: Increase `max_tokens` or reduce `temperature` to make answers tighter.
+- **Clipboard permissions**: On Android 13+, Automate may require additional permissions to write clipboard; grant when prompted.
+
+---
+
+## Example test inputs & expected output (sample)
+
+**Input:** `Luxury Perfume Ad`
+
+**Expected `final_output` (sample):**
+```
+🎨 Image Prompt:
+A cinematic macro shot of a luxury perfume bottle on a glass surface with water drops, golden lighting, dramatic reflection, ultra-realistic 8K.
+
+✍️ Text Prompt:
+Write an elegant Hindi-English perfume ad caption with luxury tone and sensory emotion.
+
+🎥 Video Prompt:
+10-sec cinematic perfume ad showing slow pan over bottle, golden mist, elegant logo reveal with ambient music.
+```
+
+---
+
+## Copyable HTTP Body (for quick paste)
+Use this JSON in your HTTP request block, inserting the `prompt_template` variable using Automate's variable picker:
+
+```
+{
+  "model": "gpt-4o-mini",
+  "messages": [
+    {"role": "user", "content": "{prompt_template}"}
+  ],
+  "max_tokens": 600,
+  "temperature": 0.7
+}
+```
+
+---
+
+## Ready-to-download file contents
+This Markdown file is intended to be downloaded and used as a step-by-step instruction inside Automate.  
+If you still want a `.flo` file (Automate's native import format), please either:
+
+1. Export a simple test `.flo` from your Automate app and upload it here — I can edit it and return a ready version with the HTTP block filled (and placeholder API key).  
+OR  
+2. Tell me "Make .flo for me" and allow me to produce an attempted `.flo` — I must warn I can't test it here, so you may need to tweak one small setting (the variable insertion inside the HTTP block).
+
+---
+
+If you want, I can now:
+- 🔁 Produce this exact file as a downloadable `.md` or `.txt` (already created here), **or**
+- 🔧 Attempt to build a `.flo` import file (with placeholders) — note: may require 1 tiny tweak inside Automate afterwards.
+
+Reply with:
+- `DOWNLOAD` — to get the `.md` file ready to download,
+- or `MAKE_FLO` — to ask me to attempt generating a `.flo` file (I will include a prominent NOTE about potential small in-app tweaks).
